@@ -183,6 +183,11 @@
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
   const state = Object.assign({ dir: "de", len: 10, cats: Object.keys(CATEGORIES), progress: {}, days: [] }, load());
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+  // Nieuwe onderwerpen automatisch aanzetten (ook bij bestaande voortgang)
+  if (!state.knownCats) state.knownCats = ["gevoel", "uitdr", "beschr", "vals", "werkw", "dagel", "zinnen"];
+  for (const k of Object.keys(CATEGORIES)) if (!state.knownCats.includes(k)) { state.knownCats.push(k); if (!state.cats.includes(k)) state.cats.push(k); }
+  state.cats = state.cats.filter(k => CATEGORIES[k]);
+  save();
 
   // ---------- Data ----------
   const items = WORDS.map(([cat, de, nl, tip]) => ({ id: cat + "|" + de, cat, de, nl, tip }));

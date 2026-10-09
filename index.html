@@ -176,6 +176,7 @@
 </div>
 
 <script src="words.js"></script>
+<script src="audio.js"></script>
 <script>
 (() => {
   // ---------- Opslag ----------
@@ -297,7 +298,7 @@
     $("qWord").innerHTML = dir === "de" ? colorArticle(prompt) : esc(prompt);
     $("qWord").classList.toggle("long", prompt.length > 22);
     $("qHint").textContent = dir === "de" ? "Wat betekent dit?" : "Hoe zeg je dit in het Duits?";
-    $("speakBtn").classList.toggle("hidden", dir !== "de" || !("speechSynthesis" in window));
+    $("speakBtn").classList.toggle("hidden", dir !== "de");
     const options = shuffle([it, ...distractors(it, dir)]);
     const optsEl = $("opts"); optsEl.innerHTML = "";
     options.forEach(o => {
@@ -340,13 +341,28 @@
   $("quitBtn").onclick = () => { renderHome(); show("home"); };
   $("speakBtn").onclick = () => speak(current.it.de);
 
+  // Uitspraak: eerst de opgenomen natuurlijke stem (audio.js), anders de beste stem van het toestel
+  const player = new Audio();
+  function bestVoice() {
+    const de = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("de"));
+    const score = v => (/premium|enhanced|verbessert|natural|neural|online/i.test(v.name) ? 10 : 0)
+      + (/google/i.test(v.name) ? 6 : 0) + (/anna|helena|petra|markus|yannick/i.test(v.name) ? 3 : 0)
+      + (v.lang === "de-DE" ? 1 : 0);
+    return de.sort((a, b) => score(b) - score(a))[0];
+  }
   function speak(text) {
+    const clip = (typeof AUDIO !== "undefined") && AUDIO[text];
+    if (clip) {
+      if ("speechSynthesis" in window) speechSynthesis.cancel();
+      player.pause(); player.src = clip; player.currentTime = 0;
+      player.play().catch(() => {});
+      return;
+    }
     if (!("speechSynthesis" in window)) return;
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
+    const u = new SpeechSynthesisUtterance(text.replace(/\s*\(.*?\)/g, ""));
     u.lang = "de-DE"; u.rate = 0.9;
-    const v = speechSynthesis.getVoices().find(v => v.lang && v.lang.startsWith("de"));
-    if (v) u.voice = v;
+    const v = bestVoice(); if (v) u.voice = v;
     speechSynthesis.speak(u);
   }
 
